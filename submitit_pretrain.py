@@ -12,8 +12,9 @@ import os
 import uuid
 from pathlib import Path
 
-import main_pretrain as trainer
 import submitit
+
+import main_pretrain as trainer
 
 
 def parse_args():

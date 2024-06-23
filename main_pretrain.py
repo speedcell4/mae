@@ -11,18 +11,17 @@
 import argparse
 import datetime
 import json
-import numpy as np
 import os
 import time
 from pathlib import Path
 
+import numpy as np
+import timm
 import torch
 import torch.backends.cudnn as cudnn
-from torch.utils.tensorboard import SummaryWriter
-import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-
-import timm
+import torchvision.transforms as transforms
+from torch.utils.tensorboard import SummaryWriter
 
 assert timm.__version__ == "0.3.2"  # version check
 import timm.optim.optim_factory as optim_factory
@@ -107,8 +106,8 @@ def get_args_parser():
 def main(args):
     misc.init_distributed_mode(args)
 
-    print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
-    print("{}".format(args).replace(', ', ',\n'))
+    print(f'job dir: {os.path.dirname(os.path.realpath(__file__))}')
+    print(f"{args}".replace(', ', ',\n'))
 
     device = torch.device(args.device)
 
@@ -121,10 +120,10 @@ def main(args):
 
     # simple augmentation
     transform_train = transforms.Compose([
-            transforms.RandomResizedCrop(args.input_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        transforms.RandomResizedCrop(args.input_size, scale=(0.2, 1.0), interpolation=3),  # 3 is bicubic
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
     dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
     print(dataset_train)
 
@@ -134,7 +133,7 @@ def main(args):
         sampler_train = torch.utils.data.DistributedSampler(
             dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True
         )
-        print("Sampler_train = %s" % str(sampler_train))
+        print(f"Sampler_train = {str(sampler_train)}")
     else:
         sampler_train = torch.utils.data.RandomSampler(dataset_train)
 
@@ -151,30 +150,30 @@ def main(args):
         pin_memory=args.pin_mem,
         drop_last=True,
     )
-    
+
     # define the model
     model = models_mae.__dict__[args.model](norm_pix_loss=args.norm_pix_loss)
 
     model.to(device)
 
     model_without_ddp = model
-    print("Model = %s" % str(model_without_ddp))
+    print(f"Model = {str(model_without_ddp)}")
 
     eff_batch_size = args.batch_size * args.accum_iter * misc.get_world_size()
-    
+
     if args.lr is None:  # only base_lr is specified
         args.lr = args.blr * eff_batch_size / 256
 
-    print("base lr: %.2e" % (args.lr * 256 / eff_batch_size))
-    print("actual lr: %.2e" % args.lr)
+    print(f"base lr: {args.lr * 256 / eff_batch_size:.2e}")
+    print(f"actual lr: {args.lr:.2e}")
 
-    print("accumulate grad iterations: %d" % args.accum_iter)
-    print("effective batch size: %d" % eff_batch_size)
+    print(f"accumulate grad iterations: {args.accum_iter:d}")
+    print(f"effective batch size: {eff_batch_size:d}")
 
     if args.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
         model_without_ddp = model.module
-    
+
     # following timm: set wd as 0 for bias and norm layers
     param_groups = optim_factory.add_weight_decay(model_without_ddp, args.weight_decay)
     optimizer = torch.optim.AdamW(param_groups, lr=args.lr, betas=(0.9, 0.95))
@@ -199,8 +198,10 @@ def main(args):
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
                 loss_scaler=loss_scaler, epoch=epoch)
 
-        log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                        'epoch': epoch,}
+        log_stats = {
+            **{f'train_{k}': v for k, v in train_stats.items()},
+            'epoch': epoch,
+        }
 
         if args.output_dir and misc.is_main_process():
             if log_writer is not None:
@@ -210,7 +211,7 @@ def main(args):
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-    print('Training time {}'.format(total_time_str))
+    print(f'Training time {total_time_str}')
 
 
 if __name__ == '__main__':

@@ -14,8 +14,8 @@ from typing import Iterable
 
 import torch
 
-import util.misc as misc
 import util.lr_sched as lr_sched
+import util.misc as misc
 
 
 def train_one_epoch(model: torch.nn.Module,
@@ -74,7 +74,6 @@ def train_one_epoch(model: torch.nn.Module,
             epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
             log_writer.add_scalar('train_loss', loss_value_reduce, epoch_1000x)
             log_writer.add_scalar('lr', lr, epoch_1000x)
-
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
